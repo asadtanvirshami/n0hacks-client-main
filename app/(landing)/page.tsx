@@ -266,62 +266,61 @@ export default function Page() {
   };
 
   const handleConsultationSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  event.preventDefault();
 
-    const trimmedName = leadForm.name.trim();
-    const trimmedEmail = leadForm.email.trim();
-    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+  const trimmedName = leadForm.name.trim();
+  const trimmedEmail = leadForm.email.trim();
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
 
-    if (!trimmedName || !isEmailValid) {
-      setFormError(copy.hero.formError);
-      setFormStatus({ type: null, message: "" });
-      return;
-    }
+  if (!trimmedName || !isEmailValid) {
+    setFormError(copy.hero.formError);
+    return;
+  }
 
-    setFormError("");
-    setFormStatus({ type: null, message: "" });
+  setFormError("");
+  setFormStatus({ type: null, message: "" });
 
-    const requestType = language === "es" ? "Consulta GRATIS" : "FREE consultation";
+  try {
+    setIsSubmitting(true);
 
-    const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || "";
-    const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || "";
-    const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || "";
+    const response = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY,
 
-    if (!serviceId || !templateId || !publicKey) {
-      setFormStatus({ type: "error", message: copy.hero.submitConfigError });
-      return;
-    }
+        // 🔥 Your fields
+        name: trimmedName,
+        email: trimmedEmail,
+        phone: leadForm.phone || "-",
+        company: leadForm.company || "-",
 
-    try {
-      setIsSubmitting(true);
+        subject: "New Lead - N0Hacks",
+        from_name: "N0Hacks Website",
 
-      await emailjs.send(
-        serviceId,
-        templateId,
-        {
-          to_email: leadRecipientEmail,
-          from_name: trimmedName,
-          from_email: trimmedEmail,
-          phone: leadForm.phone.trim() || "-",
-          company: leadForm.company.trim() || "-",
-          language: language === "es" ? "Spanish" : "English",
-          request_type: requestType,
-          message:
-            language === "es"
-              ? "Cliente solicita contacto para agendar reunion por llamada o email."
-              : "Lead requested contact to schedule a meeting by call or email.",
-        },
-        { publicKey },
-      );
+        message:
+          language === "es"
+            ? "Cliente solicita contacto para agendar reunión."
+            : "Lead requested contact to schedule a meeting.",
+      }),
+    });
 
+    const result = await response.json();
+
+    if (result.success) {
       setFormStatus({ type: "success", message: copy.hero.submitSuccess });
       setLeadForm({ name: "", email: "", phone: "", company: "" });
-    } catch {
-      setFormStatus({ type: "error", message: copy.hero.submitError });
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setFormStatus({ type: "error", message: result.message || copy.hero.submitError });
     }
-  };
+  } catch (error) {
+    setFormStatus({ type: "error", message: copy.hero.submitError });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-black text-white">
